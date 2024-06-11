@@ -13,21 +13,51 @@ class TradingChart extends StatelessWidget {
     required this.xRange,
     this.settings = const TradingChartSettings(),
     this.onYRangeUpdate,
+    this.onPointerDown,
+    this.onPointerMove,
+    this.onPointerUp,
+    this.onPointerSignal,
   });
   final TradingChartData data;
   final Range<int> xRange;
   final TradingChartSettings settings;
   final ValueSetter<Range<double>>? onYRangeUpdate;
+  final ValueSetter<PointerEvent>? onPointerDown;
+  final ValueSetter<PointerEvent>? onPointerMove;
+  final ValueSetter<PointerEvent>? onPointerUp;
+  final ValueSetter<PointerEvent>? onPointerSignal;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(
-      child: CustomPaint(
-        painter: ChartPainter(
-          data: data,
-          xRange: xRange,
-          settings: settings,
-          onYRangeUpdate: onYRangeUpdate,
+    final ChartPainter painter = ChartPainter(
+      data: data,
+      xRange: xRange,
+      settings: settings,
+      onYRangeUpdate: onYRangeUpdate,
+    );
+    return Listener(
+      onPointerDown: (event) {
+        final val = painter.transformEvent(event);
+        if (val != null) {
+          onPointerDown!(val);
+        }
+      },
+      onPointerMove: (event) {
+        final val = painter.transformEvent(event);
+        if (val != null) {
+          onPointerMove!(val);
+        }
+      },
+      onPointerUp: (event) => onPointerUp,
+      onPointerSignal: (event) {
+        final val = painter.transformEvent(event);
+        if (val != null) {
+          onPointerMove!(val);
+        }
+      },
+      child: SizedBox.expand(
+        child: CustomPaint(
+          painter: painter,
         ),
       ),
     );

@@ -15,6 +15,7 @@ class ChartPainter extends CustomPainter {
   final Range<int> xRange;
   final ValueSetter<Range<double>>? onYRangeUpdate;
   Range<double> yRange = const Range<double>(start: 0, end: 100);
+  Size currentSize = const Size(100, 100);
 
   ChartPainter({
     super.repaint,
@@ -26,6 +27,7 @@ class ChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    currentSize = size;
     final double chartHeight = size.height - settings.margins.top - settings.margins.bottom;
     final double chartWidth = size.width - settings.margins.left - settings.margins.right;
 
@@ -342,6 +344,23 @@ class ChartPainter extends CustomPainter {
       ),
       framePaint,
     );
+  }
+
+  PointerEvent? transformEvent(PointerEvent event) {
+    final double chartHeight = (currentSize.height - settings.margins.top - settings.margins.bottom);
+    final double chartWidth = (currentSize.width - settings.margins.left - settings.margins.right);
+    final double price = (currentSize.height - event.localPosition.dy - settings.margins.top) * yRange.difference() / chartHeight + yRange.start;
+    final double timestamp = (currentSize.width - event.localPosition.dx - settings.margins.left) * xRange.difference() / chartWidth + xRange.start;
+    final double deltaY = -1 * event.delta.dy * yRange.difference() / chartHeight;
+    final double deltaX = -1 * event.delta.dx * xRange.difference() / chartWidth;
+    if (price >= yRange.start && price <= yRange.end && timestamp >= xRange.start && timestamp <= xRange.end) {
+      return event.copyWith(
+        position: Offset(timestamp, price),
+        delta: Offset(deltaX, deltaY),
+      );
+    } else {
+      return null;
+    }
   }
 
   double yIntervalFromApprox(double range) {
