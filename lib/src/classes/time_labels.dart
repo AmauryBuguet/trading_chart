@@ -13,60 +13,27 @@ class TL {
 
 class TimeLabels {
   static List<TL> values = [
-    TL(1, DateFormat.Hm()),
-    TL(3, DateFormat.Hm()),
-    TL(5, DateFormat.Hm()),
-    TL(15, DateFormat.Hm()),
-    TL(30, DateFormat.Hm()),
-    TL(60, DateFormat.Hm()),
-    TL(120, DateFormat.Hm()),
-    TL(240, DateFormat.Md()),
-    TL(360, DateFormat("d/M\nH:m")),
-    TL(720, DateFormat("d/M\nH:m")),
-    TL(1440, DateFormat("d/M")),
-    TL(4320, DateFormat("d/M")),
-    TL(10080, DateFormat("d/M")),
-    TL(20160, DateFormat("d/M")),
-    TL(43200, DateFormat("d/M")),
-    TL(132480, DateFormat("d/M/y")),
-    TL(525600, DateFormat("d/M/y")),
+    TL(1, DateFormat.Hm()), // m1
+    TL(3, DateFormat.Hm()), // m3
+    TL(5, DateFormat.Hm()), // m5
+    TL(15, DateFormat.Hm()), // m15
+    TL(30, DateFormat.Hm()), // m30
+    TL(60, DateFormat.Hm()), // h1
+    TL(120, DateFormat.Hm()), // h2
+    TL(240, DateFormat.Md()), // h4
+    TL(360, DateFormat("d/M\nH:m")), // h6
+    TL(720, DateFormat("d/M\nH:m")), // h12
+    TL(1440, DateFormat("d/M")), // d
+    TL(4320, DateFormat("d/M")), // d3
+    TL(10080, DateFormat("d/M")), // W
+    TL(20160, DateFormat("d/M")), // W2
+    TL(43200, DateFormat("d/M")), // M
+    TL(132480, DateFormat("d/M/y")), // M3
+    TL(525600, DateFormat("d/M/y")), // y
   ];
 
   static TL closestFromRange(int range) {
     return values.reduce((a, b) {
-      return (a.nbMs() - range).abs() > (b.nbMs() - range).abs() ? b : a;
-    });
-  }
-}
-
-enum OldTimeLabel {
-  m1(1),
-  m3(3),
-  m5(5),
-  m15(15),
-  m30(30),
-  h1(60),
-  h2(120),
-  h4(240),
-  h6(360),
-  h12(720),
-  daily(1440),
-  days3(4320),
-  weekly(10080),
-  biweekly(20160),
-  monthly(43200),
-  month3(132480),
-  yearly(525600);
-
-  final int nbMin;
-  const OldTimeLabel(this.nbMin);
-
-  int nbMs() {
-    return nbMin * 60000;
-  }
-
-  factory OldTimeLabel.closestFromRange(int range) {
-    return OldTimeLabel.values.reduce((a, b) {
       return (a.nbMs() - range).abs() > (b.nbMs() - range).abs() ? b : a;
     });
   }

@@ -1,8 +1,9 @@
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:path_drawing/path_drawing.dart';
 
-import 'classes/candle.dart';
 import 'classes/time_labels.dart';
 import 'classes/trading_chart_data.dart';
 import 'classes/trading_chart_ranges.dart';
@@ -29,13 +30,13 @@ class ChartPainter extends CustomPainter {
 
     // Draw Y grid and labels
     final framePaint = Paint()
-      ..color = settings.gridColors.frameColor
+      ..color = settings.gridSettings.frameColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = settings.gridColors.frameWidth;
+      ..strokeWidth = settings.gridSettings.frameWidth;
     final gridPaint = Paint()
-      ..color = settings.gridColors.gridColor
+      ..color = settings.gridSettings.gridColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = settings.gridColors.gridWidth;
+      ..strokeWidth = settings.gridSettings.gridWidth;
     final yInterval = yIntervalFromApprox(ranges.yRange.difference() / settings.axisSettings.nbYIntervals);
     double labelPrice = (ranges.yRange.start / yInterval).ceil() * yInterval;
     while (labelPrice < ranges.yRange.end) {
@@ -161,8 +162,8 @@ class ChartPainter extends CustomPainter {
       for (final candle in displayedCandles) {
         final paint = Paint()
           ..color = colorFromCandle(candle)
-          ..style = settings.candleColors.style
-          ..strokeWidth = settings.candleColors.lineWidth;
+          ..style = settings.candleSettings.style
+          ..strokeWidth = settings.candleSettings.lineWidth;
         final x = leftFromTimestamp(candle.timestamp, chartWidth);
         // draw body
         final bodyTop = max(candle.close, candle.open);
@@ -211,6 +212,113 @@ class ChartPainter extends CustomPainter {
       }
     }
 
+    // Draw unsent order filled lines
+    if (data.unsentOrders != null) {
+      for (final line in data.unsentOrders!) {
+        final y = topFromPrice(line.price, chartHeight);
+        if (y > settings.margins.top && y < (size.height - settings.margins.bottom)) {
+          canvas.drawLine(
+            Offset(
+              settings.margins.left,
+              y,
+            ),
+            Offset(
+              size.width - settings.margins.right,
+              y,
+            ),
+            Paint()
+              ..color = line.color
+              ..strokeWidth = line.width
+              ..style = PaintingStyle.stroke,
+          );
+        }
+      }
+    }
+
+    // Draw unfilled order dotted lines
+    if (data.unfilledOrders != null) {
+      for (final line in data.unfilledOrders!) {
+        final y = topFromPrice(line.price, chartHeight);
+        if (y > settings.margins.top && y < (size.height - settings.margins.bottom)) {
+          var path = Path();
+          path.moveTo(
+            settings.margins.left,
+            y,
+          );
+          path.lineTo(
+            size.width - settings.margins.right,
+            y,
+          );
+          canvas.drawPath(
+            dashPath(
+              path,
+              dashArray: CircularIntervalList<double>(<double>[10.0, 10.0]),
+            ),
+            Paint()
+              ..color = line.color
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = line.width,
+          );
+        }
+      }
+    }
+
+    // Draw positions
+    if (data.positions != null && displayedCandles.isNotEmpty) {
+      for (final position in data.positions!) {
+        if (position.timestamp < ranges.xRange.end) {
+          // Draw entry point
+          if (position.timestamp > ranges.xRange.start && position.entryPrice > ranges.yRange.start && position.entryPrice < ranges.yRange.end) {
+            canvas.drawPoints(
+              PointMode.points,
+              [
+                Offset(
+                  leftFromTimestamp(position.timestamp, chartWidth),
+                  topFromPrice(position.entryPrice, chartHeight),
+                ),
+              ],
+              Paint()
+                ..color = position.isLong ? settings.positionSettings.longColor : settings.positionSettings.shortColor
+                ..strokeCap = StrokeCap.round
+                ..strokeWidth = settings.positionSettings.entryPointSize,
+            );
+          }
+          // Draw profit / loss
+          if (position.timestamp < displayedCandles.last.timestamp) {
+            var path = Path();
+            path.moveTo(
+              max(leftFromTimestamp(position.timestamp, chartWidth), settings.margins.left),
+              topFromPrice(position.entryPrice, chartHeight),
+            );
+            // find first candle after timestamp
+            final candleIndex = displayedCandles.indexWhere((e) => e.timestamp > position.timestamp);
+            for (final candle in displayedCandles.sublist(candleIndex)) {
+              debugPrint("path moved");
+              path.lineTo(
+                leftFromTimestamp(candle.timestamp, chartWidth),
+                topFromPrice(candle.close, chartHeight),
+              );
+            }
+            path.lineTo(
+              leftFromTimestamp(displayedCandles.last.timestamp, chartWidth),
+              topFromPrice(position.entryPrice, chartHeight),
+            );
+            path.close();
+            bool isAbove = displayedCandles.last.close > position.entryPrice;
+            canvas.drawPath(
+              path,
+              Paint()
+                ..color = ((position.isLong && isAbove) || (!position.isLong && !isAbove))
+                    ? settings.positionSettings.profitColor
+                    : settings.positionSettings.lossColor
+                ..style = PaintingStyle.fill
+                ..strokeWidth = 2,
+            );
+          }
+        }
+      }
+    }
+
     // Draw frame
     canvas.drawRect(
       Rect.fromLTRB(
@@ -242,11 +350,11 @@ class ChartPainter extends CustomPainter {
 
   Color colorFromCandle(Candle candle) {
     if (candle.close > candle.open) {
-      return settings.candleColors.bull;
+      return settings.candleSettings.bullColor;
     } else if (candle.close < candle.open) {
-      return settings.candleColors.bear;
+      return settings.candleSettings.bearColor;
     } else {
-      return settings.candleColors.doji;
+      return settings.candleSettings.dojiColor;
     }
   }
 
@@ -262,7 +370,7 @@ class ChartPainter extends CustomPainter {
   bool shouldRepaint(covariant ChartPainter oldDelegate) {
     if (data.candles.length != oldDelegate.data.candles.length) {
       return true;
-    } else if (data.candles.last != oldDelegate.data.candles.last) {
+    } else if (data.candles.lastOrNull != oldDelegate.data.candles.lastOrNull) {
       return true;
     } else if ((ranges.xRange != oldDelegate.ranges.xRange) || (ranges.yRange != oldDelegate.ranges.yRange)) {
       return true;
