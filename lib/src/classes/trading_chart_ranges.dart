@@ -16,13 +16,3 @@ class Range<T extends num> extends Equatable {
   @override
   List<Object?> get props => [start, end];
 }
-
-class TradingChartRanges {
-  final Range<int> xRange;
-  final Range<double> yRange;
-
-  const TradingChartRanges({
-    required this.xRange,
-    required this.yRange,
-  });
-}

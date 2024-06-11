@@ -10,12 +10,14 @@ class TradingChart extends StatelessWidget {
   const TradingChart({
     super.key,
     required this.data,
-    required this.ranges,
+    required this.xRange,
     this.settings = const TradingChartSettings(),
+    this.onYRangeUpdate,
   });
   final TradingChartData data;
-  final TradingChartRanges ranges;
+  final Range<int> xRange;
   final TradingChartSettings settings;
+  final ValueSetter<Range<double>>? onYRangeUpdate;
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +25,9 @@ class TradingChart extends StatelessWidget {
       child: CustomPaint(
         painter: ChartPainter(
           data: data,
-          ranges: ranges,
+          xRange: xRange,
           settings: settings,
+          onYRangeUpdate: onYRangeUpdate,
         ),
       ),
     );

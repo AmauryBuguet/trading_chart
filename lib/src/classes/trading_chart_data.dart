@@ -15,18 +15,32 @@ class TradingChartData {
   });
 }
 
-class TradingPosition extends Equatable {
+class PositionOrder extends Equatable {
   final int timestamp;
-  final double entryPrice;
+  final double price;
+
+  const PositionOrder({
+    required this.timestamp,
+    required this.price,
+  })  : assert(timestamp > 0, "Timestamp must be > 0"),
+        assert(price > 0, "price must be > 0");
+
+  @override
+  List<Object?> get props => [timestamp, price];
+}
+
+class TradingPosition extends Equatable {
+  final PositionOrder open;
+  final PositionOrder? close;
   final bool isLong;
 
-  const TradingPosition({
-    required this.timestamp,
-    required this.entryPrice,
+  TradingPosition({
+    required this.open,
+    this.close,
     required this.isLong,
-  });
+  }) : assert((close == null) || (open.timestamp < close.timestamp), "Close timestamp can't be earlier than open timestamp");
   @override
-  List<Object?> get props => [timestamp, entryPrice, isLong];
+  List<Object?> get props => [open, close, isLong];
 }
 
 class TradingOrder extends Equatable {
@@ -38,7 +52,8 @@ class TradingOrder extends Equatable {
     required this.price,
     required this.color,
     this.width = 1,
-  });
+  })  : assert(price > 0, "price can't be < 0"),
+        assert(width > 0, "width can't be < 0");
 
   @override
   List<Object?> get props => [price, color, width];
@@ -59,7 +74,8 @@ class Candle extends Equatable {
     required this.low,
     required this.close,
     required this.volume,
-  });
+  })  : assert(high >= open && high >= close && high >= low && low <= close && low <= open, "Must respect high >= (open and close) >= low"),
+        assert(timestamp > 0, "timestamp must be > 0");
 
   @override
   List<Object?> get props => [timestamp, open, high, close, volume];

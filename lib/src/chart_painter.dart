@@ -12,19 +12,20 @@ import 'classes/trading_chart_settings.dart';
 class ChartPainter extends CustomPainter {
   final TradingChartData data;
   final TradingChartSettings settings;
-  final TradingChartRanges ranges;
+  final Range<int> xRange;
+  final ValueSetter<Range<double>>? onYRangeUpdate;
+  Range<double> yRange = const Range<double>(start: 0, end: 100);
 
   ChartPainter({
     super.repaint,
     required this.data,
-    required this.ranges,
+    required this.xRange,
     this.settings = const TradingChartSettings(),
+    this.onYRangeUpdate,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    debugPrint(size.toString());
-
     final double chartHeight = size.height - settings.margins.top - settings.margins.bottom;
     final double chartWidth = size.width - settings.margins.left - settings.margins.right;
 
@@ -37,9 +38,31 @@ class ChartPainter extends CustomPainter {
       ..color = settings.gridSettings.gridColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = settings.gridSettings.gridWidth;
-    final yInterval = yIntervalFromApprox(ranges.yRange.difference() / settings.axisSettings.nbYIntervals);
-    double labelPrice = (ranges.yRange.start / yInterval).ceil() * yInterval;
-    while (labelPrice < ranges.yRange.end) {
+
+    // Compute yRange
+    final firstIndex = data.candles.indexWhere((e) => e.timestamp >= xRange.start);
+    final lastIndex = data.candles.indexWhere((e) => e.timestamp >= xRange.end, firstIndex);
+    final displayedCandles = firstIndex != -1 ? data.candles.sublist(firstIndex, lastIndex != -1 ? lastIndex : null) : List<Candle>.empty();
+    final oldYRange = Range<double>(start: yRange.start, end: yRange.end);
+    if (data.candles.isEmpty) {
+      yRange = const Range<double>(start: 0, end: 100);
+    } else if (displayedCandles.isEmpty) {
+      // This should be avoided
+      final double diff = (data.candles.last.high - data.candles.last.low) * settings.axisSettings.pricePctMargin / 100;
+      yRange = Range<double>(start: data.candles.last.low - diff, end: data.candles.last.high + diff);
+    } else {
+      final maxY = displayedCandles.map((e) => e.high).reduce(max);
+      final minY = displayedCandles.map((e) => e.low).reduce(min);
+      final double diff = (maxY - minY) * settings.axisSettings.pricePctMargin / 100;
+      yRange = Range<double>(start: minY - diff, end: maxY + diff);
+    }
+    if (onYRangeUpdate != null && (oldYRange.start != yRange.start || oldYRange.end != yRange.end)) {
+      onYRangeUpdate!(yRange);
+    }
+
+    final yInterval = yIntervalFromApprox(yRange.difference() / settings.axisSettings.nbYIntervals);
+    double labelPrice = (yRange.start / yInterval).ceil() * yInterval;
+    while (labelPrice < yRange.end) {
       // Draw grid line
       final y = topFromPrice(labelPrice, chartHeight);
       canvas.drawLine(
@@ -93,9 +116,9 @@ class ChartPainter extends CustomPainter {
     }
 
     // Draw X grid and labels
-    final timeLabel = TimeLabels.closestFromRange(ranges.xRange.difference() ~/ settings.axisSettings.nbXIntervals);
-    int labelTimestamp = (ranges.xRange.start / (timeLabel.nbMs())).ceil() * timeLabel.nbMs();
-    while (labelTimestamp < ranges.xRange.end) {
+    final timeLabel = TimeLabels.closestFromRange(xRange.difference() ~/ settings.axisSettings.nbXIntervals);
+    int labelTimestamp = (xRange.start / (timeLabel.nbMs())).ceil() * timeLabel.nbMs();
+    while (labelTimestamp < xRange.end) {
       final x = leftFromTimestamp(labelTimestamp, chartWidth);
       // Draw grid line
       canvas.drawLine(
@@ -148,14 +171,11 @@ class ChartPainter extends CustomPainter {
     }
 
     // Draw candles
-    final firstIndex = data.candles.indexWhere((e) => e.timestamp >= ranges.xRange.start);
-    final lastIndex = data.candles.indexWhere((e) => e.timestamp >= ranges.xRange.end, firstIndex);
-    final displayedCandles = firstIndex != -1 ? data.candles.sublist(firstIndex, lastIndex != -1 ? lastIndex : null) : List<Candle>.empty();
     if (displayedCandles.isNotEmpty) {
       late final double candleDemiWidth;
       if (data.candles.length >= 2) {
         final diffTs = data.candles[1].timestamp - data.candles.first.timestamp;
-        candleDemiWidth = chartWidth * 0.35 * diffTs / ranges.xRange.difference();
+        candleDemiWidth = chartWidth * 0.35 * diffTs / xRange.difference();
       } else {
         candleDemiWidth = chartWidth * 0.0035; // 0.7% of the chart width
       }
@@ -168,46 +188,40 @@ class ChartPainter extends CustomPainter {
         // draw body
         final bodyTop = max(candle.close, candle.open);
         final bodyBot = min(candle.close, candle.open);
-        if (bodyTop > ranges.yRange.start && bodyBot < ranges.yRange.end) {
-          canvas.drawRect(
-            Rect.fromLTRB(
-              max(x - candleDemiWidth, settings.margins.left),
-              max(topFromPrice(bodyTop, chartHeight), settings.margins.top),
-              min(x + candleDemiWidth, size.width - settings.margins.right),
-              min(topFromPrice(bodyBot, chartHeight), size.height - settings.margins.bottom),
+        canvas.drawRect(
+          Rect.fromLTRB(
+            max(x - candleDemiWidth, settings.margins.left),
+            topFromPrice(bodyTop, chartHeight),
+            min(x + candleDemiWidth, size.width - settings.margins.right),
+            topFromPrice(bodyBot, chartHeight),
+          ),
+          paint,
+        );
+        if (x > settings.margins.left && x < (size.width - settings.margins.right)) {
+          // Draw top wick
+          canvas.drawLine(
+            Offset(
+              x,
+              topFromPrice(bodyTop, chartHeight),
+            ),
+            Offset(
+              x,
+              topFromPrice(candle.high, chartHeight),
             ),
             paint,
           );
-        }
-        if (x > settings.margins.left && x < (size.width - settings.margins.right)) {
-          if (candle.high > ranges.yRange.start && bodyTop < ranges.yRange.end) {
-            // Draw top wick
-            canvas.drawLine(
-              Offset(
-                x,
-                min(topFromPrice(bodyTop, chartHeight), size.height - settings.margins.bottom),
-              ),
-              Offset(
-                x,
-                max(topFromPrice(candle.high, chartHeight), settings.margins.top),
-              ),
-              paint,
-            );
-          }
-          if (bodyBot > ranges.yRange.start && candle.low < ranges.yRange.end) {
-            // Draw bottom wick
-            canvas.drawLine(
-              Offset(
-                x,
-                max(topFromPrice(bodyBot, chartHeight), settings.margins.top),
-              ),
-              Offset(
-                x,
-                min(topFromPrice(candle.low, chartHeight), size.height - settings.margins.bottom),
-              ),
-              paint,
-            );
-          }
+          // Draw bottom wick
+          canvas.drawLine(
+            Offset(
+              x,
+              topFromPrice(bodyBot, chartHeight),
+            ),
+            Offset(
+              x,
+              topFromPrice(candle.low, chartHeight),
+            ),
+            paint,
+          );
         }
       }
     }
@@ -266,15 +280,15 @@ class ChartPainter extends CustomPainter {
     // Draw positions
     if (data.positions != null && displayedCandles.isNotEmpty) {
       for (final position in data.positions!) {
-        if (position.timestamp < ranges.xRange.end) {
+        if (position.open.timestamp < xRange.end) {
           // Draw entry point
-          if (position.timestamp > ranges.xRange.start && position.entryPrice > ranges.yRange.start && position.entryPrice < ranges.yRange.end) {
+          if (position.open.timestamp > xRange.start && position.open.price > yRange.start && position.open.price < yRange.end) {
             canvas.drawPoints(
               PointMode.points,
               [
                 Offset(
-                  leftFromTimestamp(position.timestamp, chartWidth),
-                  topFromPrice(position.entryPrice, chartHeight),
+                  leftFromTimestamp(position.open.timestamp, chartWidth),
+                  topFromPrice(position.open.price, chartHeight),
                 ),
               ],
               Paint()
@@ -284,16 +298,15 @@ class ChartPainter extends CustomPainter {
             );
           }
           // Draw profit / loss
-          if (position.timestamp < displayedCandles.last.timestamp) {
+          if (position.open.timestamp < displayedCandles.last.timestamp) {
             var path = Path();
             path.moveTo(
-              max(leftFromTimestamp(position.timestamp, chartWidth), settings.margins.left),
-              topFromPrice(position.entryPrice, chartHeight),
+              max(leftFromTimestamp(position.open.timestamp, chartWidth), settings.margins.left),
+              topFromPrice(position.open.price, chartHeight),
             );
             // find first candle after timestamp
-            final candleIndex = displayedCandles.indexWhere((e) => e.timestamp > position.timestamp);
+            final candleIndex = displayedCandles.indexWhere((e) => e.timestamp > position.open.timestamp);
             for (final candle in displayedCandles.sublist(candleIndex)) {
-              debugPrint("path moved");
               path.lineTo(
                 leftFromTimestamp(candle.timestamp, chartWidth),
                 topFromPrice(candle.close, chartHeight),
@@ -301,10 +314,10 @@ class ChartPainter extends CustomPainter {
             }
             path.lineTo(
               leftFromTimestamp(displayedCandles.last.timestamp, chartWidth),
-              topFromPrice(position.entryPrice, chartHeight),
+              topFromPrice(position.open.price, chartHeight),
             );
             path.close();
-            bool isAbove = displayedCandles.last.close > position.entryPrice;
+            bool isAbove = displayedCandles.last.close > position.open.price;
             canvas.drawPath(
               path,
               Paint()
@@ -359,11 +372,11 @@ class ChartPainter extends CustomPainter {
   }
 
   double leftFromTimestamp(int ts, double width) {
-    return settings.margins.left + (ts - ranges.xRange.start) * width / ranges.xRange.difference();
+    return settings.margins.left + (ts - xRange.start) * width / xRange.difference();
   }
 
   double topFromPrice(double price, double height) {
-    return settings.margins.top + (ranges.yRange.end - price) * height / ranges.yRange.difference();
+    return settings.margins.top + (yRange.end - price) * height / yRange.difference();
   }
 
   @override
@@ -372,7 +385,9 @@ class ChartPainter extends CustomPainter {
       return true;
     } else if (data.candles.lastOrNull != oldDelegate.data.candles.lastOrNull) {
       return true;
-    } else if ((ranges.xRange != oldDelegate.ranges.xRange) || (ranges.yRange != oldDelegate.ranges.yRange)) {
+    } else if ((xRange != oldDelegate.xRange) || (yRange != oldDelegate.yRange)) {
+      return true;
+    } else if (data.positions?.length != oldDelegate.data.positions?.length) {
       return true;
     }
     return false;

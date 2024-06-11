@@ -70,10 +70,12 @@ class AxisSettings {
   final int nbXIntervals;
   final int nbYIntervals;
   final TextStyle labelStyle;
+  final double pricePctMargin;
 
   const AxisSettings({
     this.nbXIntervals = 10,
     this.nbYIntervals = 15,
+    this.pricePctMargin = 10,
     this.labelStyle = const TextStyle(),
-  });
+  }) : assert(pricePctMargin > 0, "pricePctMargin must be > 1");
 }
