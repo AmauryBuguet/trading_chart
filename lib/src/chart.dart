@@ -48,7 +48,7 @@ class TradingChart extends StatelessWidget {
           onPointerMove!(val);
         }
       },
-      onPointerUp: (event) => onPointerUp,
+      onPointerUp: onPointerUp,
       onPointerSignal: (event) {
         final val = painter.transformEvent(event);
         if (val != null) {
