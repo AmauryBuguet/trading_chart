@@ -357,6 +357,7 @@ class ChartPainter extends CustomPainter {
       return event.copyWith(
         position: Offset(timestamp, price),
         delta: Offset(deltaX, deltaY),
+        distanceMax: yRange.difference(),
       );
     } else {
       return null;
