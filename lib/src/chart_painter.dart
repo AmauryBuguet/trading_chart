@@ -376,7 +376,7 @@ class ChartPainter extends CustomPainter {
     } else if (val < 0.70) {
       return (5 * pow(10, logValue).toDouble(), max(-1 * logValue, 0));
     } else {
-      return (pow(10, logValue).toDouble(), max(-1 * logValue, 0));
+      return (pow(10, logValue + 1).toDouble(), max(-1 * logValue, 0));
     }
   }
 
