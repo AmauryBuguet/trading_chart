@@ -28,8 +28,9 @@ class TimeLabels {
     TL(10080, DateFormat("d/M")), // W
     TL(20160, DateFormat("d/M")), // W2
     TL(43200, DateFormat("d/M")), // M
-    TL(132480, DateFormat("d/M/y")), // M3
-    TL(525600, DateFormat("d/M/y")), // y
+    TL(132480, DateFormat("MMM y")), // M3
+    TL(262800, DateFormat("MMM y")), // M6
+    TL(525600, DateFormat("MMM y")), // y
   ];
 
   static TL closestFromRange(int range) {
