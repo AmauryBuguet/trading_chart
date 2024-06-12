@@ -367,16 +367,16 @@ class ChartPainter extends CustomPainter {
     if (range == 0) {
       return (100, 0);
     }
-    int logValue = (log(range) / log(10)).floor() + 1;
-    double val = range / pow(10, logValue);
+    int logValue = (log(range) / log(10)).floor();
+    double val = range / pow(10, logValue + 1);
     if (val < 0.12) {
-      return (pow(10, logValue - 1).toDouble(), logValue);
+      return (pow(10, logValue).toDouble(), max(-1 * logValue, 0));
     } else if (val < 0.30) {
-      return (2 * pow(10, logValue - 1).toDouble(), logValue);
+      return (2 * pow(10, logValue).toDouble(), max(-1 * logValue, 0));
     } else if (val < 0.70) {
-      return (5 * pow(10, logValue - 1).toDouble(), logValue);
+      return (5 * pow(10, logValue).toDouble(), max(-1 * logValue, 0));
     } else {
-      return (pow(10, logValue).toDouble(), logValue);
+      return (pow(10, logValue).toDouble(), max(-1 * logValue, 0));
     }
   }
 
