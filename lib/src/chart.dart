@@ -24,7 +24,7 @@ class TradingChart extends StatelessWidget {
   final ValueSetter<Range<double>>? onYRangeUpdate;
   final ValueSetter<PointerEvent>? onPointerDown;
   final ValueSetter<PointerEvent>? onPointerMove;
-  final ValueSetter<PointerEvent>? onPointerUp;
+  final ValueSetter<PointerUpEvent>? onPointerUp;
   final ValueSetter<PointerEvent>? onPointerSignal;
 
   @override
