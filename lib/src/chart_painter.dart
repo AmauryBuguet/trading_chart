@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:path_drawing/path_drawing.dart';
 
-import 'classes/time_labels.dart';
+import 'classes/utils.dart';
 import 'classes/trading_chart_data.dart';
 import 'classes/trading_chart_ranges.dart';
 import 'classes/trading_chart_settings.dart';
@@ -31,16 +31,6 @@ class ChartPainter extends CustomPainter {
     final double chartHeight = size.height - settings.margins.top - settings.margins.bottom;
     final double chartWidth = size.width - settings.margins.left - settings.margins.right;
 
-    // Draw Y grid and labels
-    final framePaint = Paint()
-      ..color = settings.gridSettings.frameColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = settings.gridSettings.frameWidth;
-    final gridPaint = Paint()
-      ..color = settings.gridSettings.gridColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = settings.gridSettings.gridWidth;
-
     // Compute yRange
     final firstIndex = data.candles.indexWhere((e) => e.timestamp >= xRange.start);
     final lastIndex = data.candles.indexWhere((e) => e.timestamp >= xRange.end, firstIndex);
@@ -62,8 +52,17 @@ class ChartPainter extends CustomPainter {
       onYRangeUpdate!(yRange);
     }
 
-    final yInterval = yIntervalFromApprox(yRange.difference() / settings.axisSettings.nbYIntervals);
-    double labelPrice = (yRange.start / yInterval).ceil() * yInterval;
+    // Draw Y grid and labels
+    final framePaint = Paint()
+      ..color = settings.gridSettings.frameColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = settings.gridSettings.frameWidth;
+    final gridPaint = Paint()
+      ..color = settings.gridSettings.gridColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = settings.gridSettings.gridWidth;
+    final intervalData = yIntervalFromApprox(yRange.difference() / settings.axisSettings.nbYIntervals);
+    double labelPrice = (yRange.start / intervalData.$1).ceil() * intervalData.$1;
     while (labelPrice < yRange.end) {
       // Draw grid line
       final y = topFromPrice(labelPrice, chartHeight);
@@ -94,7 +93,7 @@ class ChartPainter extends CustomPainter {
 
       // Draw label
       final textSpan = TextSpan(
-        text: labelPrice.toString(),
+        text: labelPrice.toStringAsFixed(intervalData.$2),
         style: settings.axisSettings.labelStyle,
       );
       final textPainter = TextPainter(
@@ -114,7 +113,7 @@ class ChartPainter extends CustomPainter {
         ),
       );
 
-      labelPrice += yInterval;
+      labelPrice += intervalData.$1;
     }
 
     // Draw X grid and labels
@@ -364,20 +363,20 @@ class ChartPainter extends CustomPainter {
     }
   }
 
-  double yIntervalFromApprox(double range) {
+  (double, int) yIntervalFromApprox(double range) {
     if (range == 0) {
-      return 100;
+      return (100, 0);
     }
     int logValue = (log(range) / log(10)).floor() + 1;
     double val = range / pow(10, logValue);
     if (val < 0.12) {
-      return pow(10, logValue - 1).toDouble();
+      return (pow(10, logValue - 1).toDouble(), logValue);
     } else if (val < 0.30) {
-      return 2 * pow(10, logValue - 1).toDouble();
+      return (2 * pow(10, logValue - 1).toDouble(), logValue);
     } else if (val < 0.70) {
-      return 5 * pow(10, logValue - 1).toDouble();
+      return (5 * pow(10, logValue - 1).toDouble(), logValue);
     } else {
-      return pow(10, logValue).toDouble();
+      return (pow(10, logValue).toDouble(), logValue);
     }
   }
 
