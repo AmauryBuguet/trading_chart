@@ -4,25 +4,25 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:path_drawing/path_drawing.dart';
 
-import 'classes/utils.dart';
 import 'classes/trading_chart_data.dart';
 import 'classes/trading_chart_ranges.dart';
 import 'classes/trading_chart_settings.dart';
+import 'classes/utils.dart';
 
 class ChartPainter extends CustomPainter {
   final TradingChartData data;
   final TradingChartSettings settings;
   final Range<int> xRange;
-  final ValueSetter<Range<double>>? onYRangeUpdate;
+  final Offset? mousePosition;
   Range<double> yRange = const Range<double>(start: 0, end: 100);
   Size currentSize = const Size(100, 100);
 
   ChartPainter({
     super.repaint,
     required this.data,
+    this.mousePosition,
     required this.xRange,
     this.settings = const TradingChartSettings(),
-    this.onYRangeUpdate,
   });
 
   @override
@@ -35,7 +35,6 @@ class ChartPainter extends CustomPainter {
     final firstIndex = data.candles.indexWhere((e) => e.timestamp >= xRange.start);
     final lastIndex = data.candles.indexWhere((e) => e.timestamp >= xRange.end, firstIndex);
     final displayedCandles = firstIndex != -1 ? data.candles.sublist(firstIndex, lastIndex != -1 ? lastIndex : null) : List<Candle>.empty();
-    final oldYRange = Range<double>(start: yRange.start, end: yRange.end);
     if (data.candles.isEmpty) {
       yRange = const Range<double>(start: 0, end: 100);
     } else if (displayedCandles.isEmpty) {
@@ -47,9 +46,6 @@ class ChartPainter extends CustomPainter {
       final minY = displayedCandles.map((e) => e.low).reduce(min);
       final double diff = (maxY - minY) * settings.axisSettings.pricePctMargin / 100;
       yRange = Range<double>(start: minY - diff, end: maxY + diff);
-    }
-    if (onYRangeUpdate != null && (oldYRange.start != yRange.start || oldYRange.end != yRange.end)) {
-      onYRangeUpdate!(yRange);
     }
 
     // Draw Y grid and labels
@@ -66,17 +62,19 @@ class ChartPainter extends CustomPainter {
     while (labelPrice < yRange.end) {
       // Draw grid line
       final y = topFromPrice(labelPrice, chartHeight);
-      canvas.drawLine(
-        Offset(
-          settings.margins.left,
-          y,
-        ),
-        Offset(
-          size.width - settings.margins.right,
-          y,
-        ),
-        gridPaint,
-      );
+      if (settings.gridSettings.show) {
+        canvas.drawLine(
+          Offset(
+            settings.margins.left,
+            y,
+          ),
+          Offset(
+            size.width - settings.margins.right,
+            y,
+          ),
+          gridPaint,
+        );
+      }
 
       // Draw tick
       canvas.drawLine(
@@ -102,8 +100,7 @@ class ChartPainter extends CustomPainter {
         textAlign: TextAlign.center,
       );
       textPainter.layout(
-        minWidth: 60,
-        maxWidth: 60,
+        maxWidth: settings.margins.right,
       );
       textPainter.paint(
         canvas,
@@ -122,17 +119,19 @@ class ChartPainter extends CustomPainter {
     while (labelTimestamp < xRange.end) {
       final x = leftFromTimestamp(labelTimestamp, chartWidth);
       // Draw grid line
-      canvas.drawLine(
-        Offset(
-          x,
-          size.height - settings.margins.bottom,
-        ),
-        Offset(
-          x,
-          settings.margins.top,
-        ),
-        gridPaint,
-      );
+      if (settings.gridSettings.show) {
+        canvas.drawLine(
+          Offset(
+            x,
+            size.height - settings.margins.bottom,
+          ),
+          Offset(
+            x,
+            settings.margins.top,
+          ),
+          gridPaint,
+        );
+      }
 
       // Draw tick
       canvas.drawLine(
@@ -333,6 +332,88 @@ class ChartPainter extends CustomPainter {
       }
     }
 
+    // Draw crosshair
+    if (settings.crossHairSettings.show && mousePosition != null) {
+      if (mousePosition!.dx > settings.margins.left &&
+          mousePosition!.dx < (size.width - settings.margins.right) &&
+          mousePosition!.dy < (size.height - settings.margins.bottom) &&
+          mousePosition!.dy > settings.margins.top) {
+        Paint chPaint = Paint()
+          ..color = settings.crossHairSettings.color
+          ..strokeWidth = settings.crossHairSettings.width
+          ..style = PaintingStyle.stroke;
+
+        var path = Path();
+        // horizontal line
+        path.moveTo(
+          mousePosition!.dx,
+          settings.margins.top,
+        );
+        path.lineTo(
+          mousePosition!.dx,
+          size.height - settings.margins.bottom,
+        );
+        // vertical line
+        path.moveTo(
+          settings.margins.left,
+          mousePosition!.dy,
+        );
+        path.lineTo(
+          size.width - settings.margins.right,
+          mousePosition!.dy,
+        );
+        canvas.drawPath(
+          dashPath(
+            path,
+            dashArray: CircularIntervalList<double>(<double>[6.0, 6.0]),
+          ),
+          chPaint,
+        );
+        // Draw x label of crosshair
+        final style = settings.axisSettings.labelStyle.copyWith(backgroundColor: settings.crossHairSettings.backgroundColor);
+        final textSpan = TextSpan(
+          text: "|  ${timeLabel.formatter.format(DateTime.fromMillisecondsSinceEpoch(timestampFromLeft(mousePosition!.dx, chartWidth)))}  |",
+          style: style,
+        );
+        final textPainter = TextPainter(
+          text: textSpan,
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.center,
+        );
+        textPainter.layout(
+          minWidth: 80,
+          maxWidth: 80,
+        );
+        textPainter.paint(
+          canvas,
+          Offset(
+            mousePosition!.dx - 40,
+            size.height - settings.margins.bottom + 10,
+          ),
+        );
+        // Draw y label of crosshair
+        final textSpanY = TextSpan(
+          text: "|  ${priceFromTop(mousePosition!.dy, chartHeight).toStringAsFixed(intervalData.$2)}  |",
+          style: style,
+        );
+        final textPainterY = TextPainter(
+          text: textSpanY,
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.end,
+        );
+        textPainterY.layout(
+          maxWidth: settings.margins.right,
+        );
+        textPainterY.paint(
+          canvas,
+          Offset(
+            size.width - settings.margins.right + 8,
+            mousePosition!.dy - 8,
+          ),
+        );
+      }
+    }
+
     // Draw frame
     canvas.drawRect(
       Rect.fromLTRB(
@@ -388,6 +469,14 @@ class ChartPainter extends CustomPainter {
     } else {
       return settings.candleSettings.dojiColor;
     }
+  }
+
+  int timestampFromLeft(double left, double width) {
+    return (((left - settings.margins.left) * xRange.difference() / width) + xRange.start).toInt();
+  }
+
+  double priceFromTop(double top, double height) {
+    return yRange.end - ((top - settings.margins.top) * yRange.difference() / height);
   }
 
   double leftFromTimestamp(int ts, double width) {

@@ -1,18 +1,17 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
 
+import 'chart_listener.dart';
 import 'chart_painter.dart';
 import 'classes/trading_chart_data.dart';
 import 'classes/trading_chart_ranges.dart';
 import 'classes/trading_chart_settings.dart';
 
-class TradingChart extends StatelessWidget {
+class TradingChart extends StatefulWidget {
   const TradingChart({
     super.key,
     required this.data,
     required this.xRange,
     this.settings = const TradingChartSettings(),
-    this.onYRangeUpdate,
     this.onPointerDown,
     this.onPointerMove,
     this.onPointerUp,
@@ -21,43 +20,44 @@ class TradingChart extends StatelessWidget {
   final TradingChartData data;
   final Range<int> xRange;
   final TradingChartSettings settings;
-  final ValueSetter<Range<double>>? onYRangeUpdate;
   final ValueSetter<PointerEvent>? onPointerDown;
   final ValueSetter<PointerEvent>? onPointerMove;
   final ValueSetter<PointerUpEvent>? onPointerUp;
   final ValueSetter<PointerEvent>? onPointerSignal;
 
   @override
+  State<TradingChart> createState() => _TradingChartState();
+}
+
+class _TradingChartState extends State<TradingChart> {
+  Offset? _mousePosition;
+
+  @override
   Widget build(BuildContext context) {
-    final ChartPainter painter = ChartPainter(
-      data: data,
-      xRange: xRange,
-      settings: settings,
-      onYRangeUpdate: onYRangeUpdate,
-    );
-    return Listener(
-      onPointerDown: (event) {
-        final val = painter.transformEvent(event);
-        if (val != null) {
-          onPointerDown!(val);
-        }
+    return MouseRegion(
+      onExit: (event) {
+        setState(() {
+          _mousePosition = null;
+        });
       },
-      onPointerMove: (event) {
-        final val = painter.transformEvent(event);
-        if (val != null) {
-          onPointerMove!(val);
-        }
+      onHover: (event) {
+        setState(() {
+          _mousePosition = event.localPosition;
+        });
       },
-      onPointerUp: onPointerUp,
-      onPointerSignal: (event) {
-        final val = painter.transformEvent(event);
-        if (val != null) {
-          onPointerSignal!(val);
-        }
-      },
+      cursor: SystemMouseCursors.precise,
       child: SizedBox.expand(
-        child: CustomPaint(
-          painter: painter,
+        child: ChartListener(
+          onPointerDown: widget.onPointerDown,
+          onPointerMove: widget.onPointerMove,
+          onPointerSignal: widget.onPointerSignal,
+          onPointerUp: widget.onPointerUp,
+          painter: ChartPainter(
+            data: widget.data,
+            xRange: widget.xRange,
+            settings: widget.settings,
+            mousePosition: _mousePosition,
+          ),
         ),
       ),
     );
