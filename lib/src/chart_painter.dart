@@ -282,7 +282,10 @@ class ChartPainter extends CustomPainter {
       for (final position in data.positions!) {
         if (position.open.timestamp < xRange.end) {
           // Draw entry point
-          if (position.open.timestamp > xRange.start && position.open.price > yRange.start && position.open.price < yRange.end) {
+          if (position.open.timestamp > xRange.start &&
+              position.open.timestamp < xRange.end &&
+              position.open.price > yRange.start &&
+              position.open.price < yRange.end) {
             canvas.drawPoints(
               PointMode.points,
               [
@@ -294,8 +297,29 @@ class ChartPainter extends CustomPainter {
               Paint()
                 ..color = position.isLong ? settings.positionSettings.longColor : settings.positionSettings.shortColor
                 ..strokeCap = StrokeCap.round
-                ..strokeWidth = settings.positionSettings.entryPointSize,
+                ..strokeWidth = settings.positionSettings.pointSize,
             );
+          }
+          // Draw exit point
+          if (position.close != null) {
+            if (position.close!.timestamp > xRange.start &&
+                position.close!.timestamp < xRange.end &&
+                position.close!.price > yRange.start &&
+                position.close!.price < yRange.end) {
+              canvas.drawPoints(
+                PointMode.points,
+                [
+                  Offset(
+                    leftFromTimestamp(position.close!.timestamp, chartWidth),
+                    topFromPrice(position.close!.price, chartHeight),
+                  ),
+                ],
+                Paint()
+                  ..color = position.isLong ? settings.positionSettings.shortColor : settings.positionSettings.longColor
+                  ..strokeCap = StrokeCap.round
+                  ..strokeWidth = settings.positionSettings.pointSize,
+              );
+            }
           }
           // Draw profit / loss
           if (position.open.timestamp < displayedCandles.last.timestamp) {
@@ -305,19 +329,37 @@ class ChartPainter extends CustomPainter {
               topFromPrice(position.open.price, chartHeight),
             );
             // find first candle after timestamp
-            final candleIndex = displayedCandles.indexWhere((e) => e.timestamp > position.open.timestamp);
-            for (final candle in displayedCandles.sublist(candleIndex)) {
+            final firstCandleIndex = displayedCandles.indexWhere((e) => e.timestamp > position.open.timestamp);
+            int? lastCandleIndex;
+            if (position.close != null) {
+              final idx = displayedCandles.indexWhere((e) => e.timestamp > position.close!.timestamp);
+              if (idx != -1) {
+                lastCandleIndex = idx;
+              }
+            }
+            for (final candle in displayedCandles.sublist(firstCandleIndex, lastCandleIndex)) {
               path.lineTo(
                 leftFromTimestamp(candle.timestamp, chartWidth),
                 topFromPrice(candle.close, chartHeight),
               );
             }
+            late final int endTs;
+            if (position.close != null) {
+              endTs = min(displayedCandles.last.timestamp, position.close!.timestamp);
+            } else {
+              endTs = displayedCandles.last.timestamp;
+            }
             path.lineTo(
-              leftFromTimestamp(displayedCandles.last.timestamp, chartWidth),
+              leftFromTimestamp(endTs, chartWidth),
               topFromPrice(position.open.price, chartHeight),
             );
             path.close();
-            bool isAbove = displayedCandles.last.close > position.open.price;
+            late final bool isAbove;
+            if (position.close != null) {
+              isAbove = position.close!.price > position.open.price;
+            } else {
+              isAbove = data.candles.last.close > position.open.price;
+            }
             canvas.drawPath(
               path,
               Paint()

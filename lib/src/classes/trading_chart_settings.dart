@@ -25,14 +25,14 @@ class PositionSettings {
   final Color lossColor;
   final Color longColor;
   final Color shortColor;
-  final double entryPointSize;
+  final double pointSize;
 
   const PositionSettings({
     this.profitColor = const Color(0x324CAF50),
     this.lossColor = const Color(0x32F44336),
     this.longColor = Colors.green,
     this.shortColor = Colors.red,
-    this.entryPointSize = 10,
+    this.pointSize = 10,
   });
 }
 
