@@ -5,7 +5,7 @@ class TradingChartSettings {
   final CandleSettings candleSettings;
   final GridSettings gridSettings;
   final AxisSettings axisSettings;
-  final PositionSettings positionSettings;
+  final DisplaySettings displaySettings;
   final CrossHairSettings crossHairSettings;
   final Color backgroundColor;
 
@@ -14,26 +14,25 @@ class TradingChartSettings {
     this.candleSettings = const CandleSettings(),
     this.gridSettings = const GridSettings(),
     this.axisSettings = const AxisSettings(),
-    this.positionSettings = const PositionSettings(),
     this.crossHairSettings = const CrossHairSettings(),
+    this.displaySettings = const DisplaySettings(),
     this.backgroundColor = Colors.black,
   });
 }
+// this.profitColor = const Color(0x324CAF50),
+// this.lossColor = const Color(0x32F44336),
 
-class PositionSettings {
-  final Color profitColor;
-  final Color lossColor;
-  final Color longColor;
-  final Color shortColor;
-  final double pointSize;
+class DisplaySettings {
+  final double percentBasedIndicatorsMaxHeight;
+  final double orderLinesWidth;
+  final int positionAreaOpacity;
 
-  const PositionSettings({
-    this.profitColor = const Color(0x324CAF50),
-    this.lossColor = const Color(0x32F44336),
-    this.longColor = Colors.green,
-    this.shortColor = Colors.red,
-    this.pointSize = 10,
-  });
+  const DisplaySettings({
+    this.percentBasedIndicatorsMaxHeight = 0.25,
+    this.orderLinesWidth = 1.0,
+    this.positionAreaOpacity = 150,
+  })  : assert(percentBasedIndicatorsMaxHeight > 0 && percentBasedIndicatorsMaxHeight <= 1, "must be between 0 and 1"),
+        assert(positionAreaOpacity >= 0 && positionAreaOpacity <= 255, "must be between 0 and 255");
 }
 
 class GridSettings {
