@@ -30,7 +30,7 @@ class TLine extends Equatable {
     this.width = 1,
     required this.color,
     required this.id,
-  }) : assert(price > 0, "price can't be < 0");
+  }) : assert(price >= 0, "price can't be < 0");
 
   @override
   List<Object?> get props => [price, color, id, width];
@@ -45,7 +45,7 @@ class TOrder extends Equatable {
     required this.price,
     required this.color,
     required this.id,
-  }) : assert(price > 0, "price can't be < 0");
+  }) : assert(price >= 0, "price can't be < 0");
 
   @override
   List<Object?> get props => [price, color, id];
@@ -64,7 +64,7 @@ class TTrade extends Equatable {
     required this.timestamp,
     required this.color,
     required this.id,
-  }) : assert(price > 0, "price can't be < 0");
+  }) : assert(price >= 0, "price can't be < 0");
 
   @override
   List<Object?> get props => [price, color, id];
@@ -77,8 +77,8 @@ class TPoint extends Equatable {
   const TPoint({
     required this.timestamp,
     required this.price,
-  })  : assert(timestamp > 0, "Timestamp must be > 0"),
-        assert(price > 0, "price must be > 0");
+  })  : assert(timestamp >= 0, "Timestamp must be > 0"),
+        assert(price >= 0, "price must be >= 0");
 
   @override
   List<Object?> get props => [timestamp, price];
@@ -136,7 +136,7 @@ class Candle extends Equatable {
     required this.close,
     required this.volume,
   })  : assert(high >= open && high >= close && high >= low && low <= close && low <= open, "Must respect high >= (open and close) >= low"),
-        assert(timestamp > 0, "timestamp must be > 0");
+        assert(timestamp >= 0, "timestamp must be >= 0");
 
   @override
   List<Object?> get props => [timestamp, open, high, close, volume];
